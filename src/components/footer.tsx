@@ -21,46 +21,14 @@ export default function Footer() {
 
           <div className="space-y-3">
             <h3 className="font-semibold text-foreground">链接与支持</h3>
-            <ul className="space-y-2">
-              <li>
-                <a
-                  href="https://github.com/Hoshino-Yumetsuki/ink-battles"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-primary transition-colors"
-                >
-                  GitHub 仓库 (GPL-3.0 license)
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://ink-battles.rikki.top/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-primary transition-colors"
-                >
-                  iykrzu 的作家战力分析
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://afdian.com/a/q78kg"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="hover:text-primary transition-colors"
-                >
-                  支持我们 (爱发电)
-                </a>
-              </li>
-            </ul>
+            <p>
+              如有问题或建议，欢迎联系我们。
+            </p>
           </div>
         </div>
 
         <div className="mt-8 pt-8 border-t text-center text-xs text-muted-foreground">
           <p>
-            灵感来源 iykrzu，测试量表由三角之外设计，站点由 Q78KG 设计并编写。
-          </p>
-          <p className="mt-2">
             &copy; {new Date().getFullYear()} Ink Battles. All rights reserved.
           </p>
         </div>

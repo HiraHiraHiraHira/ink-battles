@@ -8,7 +8,11 @@ import PageHeader from '@/components/page-header'
 import ContentInputCard from '@/components/content-input-card'
 import LoadingProgress from '@/components/loading-progress'
 import AnalysisOptions from '@/components/analysis-options'
-import WriterScoreResult from '@/components/score-result'
+import ModelConfigCard, {
+  type ModelConfig,
+  DEFAULT_CONFIG
+} from '@/components/model-config'
+import ResultModal from '@/components/result-modal'
 import AnimatedBackground from '@/components/animated-background'
 import FeaturesSection from '@/components/features-section'
 
@@ -44,6 +48,7 @@ export default function WriterAnalysisPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [progress, setProgress] = useState<number>(0)
   const [result, setResult] = useState<WriterAnalysisResult | null>(null)
+  const [showResultModal, setShowResultModal] = useState(false)
   const [enabledOptions, setEnabledOptions] = useState<{
     [key: string]: boolean
   }>({
@@ -55,6 +60,7 @@ export default function WriterAnalysisPage() {
     antiCapitalism: false,
     speedReview: false
   })
+  const [modelConfig, setModelConfig] = useState<ModelConfig>(DEFAULT_CONFIG)
 
   const handleOptionChange = (key: string, value: boolean) => {
     setEnabledOptions({ ...enabledOptions, [key]: value })
@@ -126,6 +132,7 @@ export default function WriterAnalysisPage() {
 
         formData.append('analysisType', isFileModeText ? 'text' : analysisType)
         formData.append('options', JSON.stringify(enabledOptions))
+        formData.append('modelConfig', JSON.stringify(modelConfig))
 
         const response = await fetch('/api/analyze', {
           method: 'POST',
@@ -196,6 +203,7 @@ export default function WriterAnalysisPage() {
                 clearInterval(progressInterval)
                 setProgress(100)
                 setResult(safeData)
+                setShowResultModal(true)
               } else if (message.type === 'error') {
                 throw new Error(message.error || '分析失败')
               }
@@ -230,9 +238,82 @@ export default function WriterAnalysisPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 align-start">
+          {/* 分析结果横幅 */}
+          <AnimatePresence>
+            {result && (
+              <motion.div
+                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+                className="mb-8"
+              >
+                <div
+                  onClick={() => setShowResultModal(true)}
+                  onKeyDown={(e) =>
+                    e.key === 'Enter' && setShowResultModal(true)
+                  }
+                  role="button"
+                  tabIndex={0}
+                  className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/90 to-primary p-6 cursor-pointer hover:shadow-2xl hover:shadow-primary/25 transition-all duration-300 group"
+                >
+                  {/* 背景装饰 */}
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                  <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
+
+                  <div className="relative flex items-center justify-between flex-wrap gap-4">
+                    <div className="flex items-center gap-6">
+                      {/* 分数显示 - 渐变文字效果 */}
+                      <div className="relative flex items-baseline gap-1">
+                        <span 
+                          className="text-6xl font-black tabular-nums bg-gradient-to-b from-white via-white/90 to-white/60 bg-clip-text text-transparent"
+                        >
+                          {result.overallScore.toFixed(1)}
+                        </span>
+                        <span className="text-lg font-medium text-white/50">分</span>
+                      </div>
+
+                      <div className="text-white">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm text-white/70">✨ 分析完成</span>
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        </div>
+                        <p className="text-xl font-bold mb-2">{result.title}</p>
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-white/10 backdrop-blur-sm">
+                          {result.ratingTag}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm text-white/70 hidden sm:block">
+                        点击查看完整报告
+                      </span>
+                      <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="m9 18 6-6-6-6" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
             <motion.div
-              className="content-start space-y-4"
+              className="content-start space-y-4 self-start"
               initial={{ opacity: 0, x: -30, y: 20 }}
               animate={{ opacity: 1, x: 0, y: 0 }}
               transition={{
@@ -258,7 +339,7 @@ export default function WriterAnalysisPage() {
             </motion.div>
 
             <motion.div
-              className="space-y-6 content-start"
+              className="space-y-6 content-start self-start"
               initial={{ opacity: 0, x: 30, y: 20 }}
               animate={{ opacity: 1, x: 0, y: 0 }}
               transition={{
@@ -270,6 +351,18 @@ export default function WriterAnalysisPage() {
                 damping: 15
               }}
             >
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.25 }}
+              >
+                <ModelConfigCard
+                  config={modelConfig}
+                  onChange={setModelConfig}
+                  disabled={isLoading}
+                />
+              </motion.div>
+
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -313,35 +406,6 @@ export default function WriterAnalysisPage() {
                   </motion.div>
                 )}
               </AnimatePresence>
-
-              <AnimatePresence mode="wait">
-                {result && (
-                  <motion.div
-                    key="result"
-                    initial={{
-                      opacity: 0,
-                      y: 30,
-                      scale: 0.95,
-                      filter: 'blur(4px)'
-                    }}
-                    animate={{
-                      opacity: 1,
-                      y: 0,
-                      scale: 1,
-                      filter: 'blur(0px)'
-                    }}
-                    transition={{
-                      duration: 0.6,
-                      ease: [0.23, 1, 0.32, 1],
-                      type: 'spring',
-                      stiffness: 120,
-                      damping: 20
-                    }}
-                  >
-                    <WriterScoreResult result={result} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </motion.div>
           </div>
         </div>
@@ -350,6 +414,12 @@ export default function WriterAnalysisPage() {
       <div className="max-w-300 w-full mx-auto px-4 sm:px-6">
         <FeaturesSection />
       </div>
+
+      <ResultModal
+        result={result}
+        open={showResultModal}
+        onClose={() => setShowResultModal(false)}
+      />
 
       <Toaster position="top-right" />
       <AnimatedBackground />

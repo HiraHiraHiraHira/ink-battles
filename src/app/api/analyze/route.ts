@@ -12,7 +12,28 @@ interface LlmApiConfig {
   maxTokens: number
 }
 
-function getLlmApiConfig(): LlmApiConfig {
+interface CustomModelConfig {
+  provider?: string
+  apiKey?: string
+  modelId?: string
+  baseUrl?: string
+  useDefault?: boolean
+}
+
+function getLlmApiConfig(customConfig?: CustomModelConfig): LlmApiConfig & { provider?: string } {
+  // 如果提供了自定义配置且不使用默认模型
+  if (customConfig && !customConfig.useDefault && customConfig.apiKey) {
+    return {
+      baseUrl: customConfig.baseUrl || String(process.env.OPENAI_BASE_URL),
+      apiKey: customConfig.apiKey,
+      model: customConfig.modelId || String(process.env.MODEL),
+      temperature: Number(process.env.TEMPERATURE) || 1.2,
+      maxTokens: Number(process.env.MAX_TOKENS) || 65536,
+      provider: customConfig.provider
+    }
+  }
+
+  // 使用默认配置
   return {
     baseUrl: String(process.env.OPENAI_BASE_URL),
     apiKey: String(process.env.OPENAI_API_KEY),
@@ -20,6 +41,25 @@ function getLlmApiConfig(): LlmApiConfig {
     temperature: Number(process.env.TEMPERATURE) || 1.2,
     maxTokens: Number(process.env.MAX_TOKENS) || 65536
   }
+}
+
+// 检查供应商是否支持 json_schema 格式
+function supportsJsonSchema(provider?: string): boolean {
+  // OpenAI 支持 json_schema，DeepSeek 和 Anthropic 不支持
+  const unsupportedProviders = ['deepseek', 'anthropic']
+  return !provider || !unsupportedProviders.includes(provider.toLowerCase())
+}
+
+// 根据供应商获取 max_tokens 限制
+function getMaxTokensForProvider(provider?: string, defaultMax?: number): number {
+  const providerLimits: { [key: string]: number } = {
+    deepseek: 8192,
+    anthropic: 4096
+  }
+  if (provider && providerLimits[provider.toLowerCase()]) {
+    return providerLimits[provider.toLowerCase()]
+  }
+  return defaultMax || 65536
 }
 
 function isValidLlmApiConfig(config: LlmApiConfig): boolean {
@@ -36,6 +76,10 @@ export async function POST(request: NextRequest) {
     const analysisType = formData.get('analysisType') as 'text' | 'file'
     const optionsJson = formData.get('options') as string | null
     const options = optionsJson ? JSON.parse(optionsJson) : {}
+    const modelConfigJson = formData.get('modelConfig') as string | null
+    const modelConfig: CustomModelConfig | undefined = modelConfigJson
+      ? JSON.parse(modelConfigJson)
+      : undefined
 
     if (!analysisType) {
       return new Response(
@@ -61,12 +105,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const apiConfig = getLlmApiConfig()
+    const apiConfig = getLlmApiConfig(modelConfig)
     if (!isValidLlmApiConfig(apiConfig)) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'LLM API 配置无效，请检查环境变量设置'
+          error: modelConfig && !modelConfig.useDefault
+            ? '自定义模型配置无效，请检查 API Key 是否正确'
+            : 'LLM API 配置无效，请检查环境变量设置'
         }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
       )
@@ -86,7 +132,11 @@ export async function POST(request: NextRequest) {
           sendHeartbeat()
 
           const systemPrompt = buildPrompt(options ?? {})
-          const responseFormat = {
+          
+          // 根据供应商决定 response_format
+          const useJsonSchema = supportsJsonSchema(apiConfig.provider)
+          
+          const jsonSchemaFormat = {
             type: 'json_schema',
             json_schema: {
               name: 'analysis_response',
@@ -147,11 +197,35 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          const requestConfig = {
+          const simpleJsonFormat = { type: 'json_object' }
+
+          // 对于不支持 json_schema 的供应商，在 system prompt 中添加 JSON 格式说明
+          const jsonFormatInstruction = !useJsonSchema ? `
+
+请严格按照以下 JSON 格式返回分析结果：
+{
+  "overallAssessment": "整体评价文字",
+  "title": "作品标题或概括",
+  "ratingTag": "评级标签",
+  "dimensions": [
+    { "name": "维度名称", "score": 1-5的整数, "description": "维度描述" }
+  ],
+  "strengths": ["优点1", "优点2"],
+  "improvements": ["改进建议1", "改进建议2"],
+  "comment": "总体评语",
+  "structural_analysis": ["结构分析1", "结构分析2"],
+  "mermaid_diagrams": [
+    { "type": "图表类型", "title": "图表标题", "code": "mermaid代码" }
+  ]
+}` : ''
+
+          const finalSystemPrompt = systemPrompt + jsonFormatInstruction
+
+          const requestConfig: any = {
             model: apiConfig.model,
             temperature: apiConfig.temperature,
-            max_tokens: apiConfig.maxTokens,
-            response_format: responseFormat
+            max_tokens: getMaxTokensForProvider(apiConfig.provider, apiConfig.maxTokens),
+            response_format: useJsonSchema ? jsonSchemaFormat : simpleJsonFormat
           }
 
           let generatedText: string
@@ -159,7 +233,7 @@ export async function POST(request: NextRequest) {
 
           if (analysisType === 'text') {
             messages = [
-              { role: 'system', content: systemPrompt },
+              { role: 'system', content: finalSystemPrompt },
               { role: 'user', content: content }
             ]
           } else {
@@ -177,7 +251,7 @@ export async function POST(request: NextRequest) {
             const fileDataUrl = `data:${file.type};base64,${base64}`
 
             messages = [
-              { role: 'system', content: systemPrompt },
+              { role: 'system', content: finalSystemPrompt },
               {
                 role: 'user',
                 content: [

@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { AlertCircle, Sparkles, Link as LinkIcon } from 'lucide-react'
+import { AlertCircle, Sparkles } from 'lucide-react'
 
 export default function PageHeader() {
   return (
@@ -36,42 +36,6 @@ export default function PageHeader() {
           基于先进 AI
           模型的作品分析工具，为您的创作提供深度洞察、评分与改进建议。
         </p>
-
-        {/* 友链 */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="flex items-center gap-2 text-xs text-muted-foreground bg-background/50 backdrop-blur-sm px-3 py-1 rounded-full border border-border/50 shadow-sm"
-        >
-          <LinkIcon className="w-3 h-3" />
-          <span>友链:</span>
-          <a
-            href="https://ink-battles.rikki.top/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:text-primary/80 transition-colors font-medium hover:underline underline-offset-4"
-          >
-            iykrzu 的作家战力分析
-          </a>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="flex items-center gap-2 text-xs text-muted-foreground bg-background/50 backdrop-blur-sm px-3 py-1 rounded-full border border-border/50 shadow-sm"
-        >
-          <LinkIcon className="w-3 h-3" />
-          <a
-            href="https://afdian.com/a/q78kg"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:text-primary/80 transition-colors font-medium hover:underline underline-offset-4"
-          >
-            支持我们 (爱发电)
-          </a>
-        </motion.div>
 
         {/* 公告栏 */}
         <motion.div
