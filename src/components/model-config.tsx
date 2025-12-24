@@ -19,7 +19,11 @@ import {
   Key,
   Cpu,
   Check,
-  RotateCcw
+  RotateCcw,
+  Zap,
+  Loader2,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react'
 
 export interface ModelConfig {
@@ -76,6 +80,8 @@ export default function ModelConfigCard({
 }: ModelConfigProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [localConfig, setLocalConfig] = useState<ModelConfig>(config)
+  const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
+  const [testMessage, setTestMessage] = useState('')
 
   useEffect(() => {
     setLocalConfig(config)
@@ -123,6 +129,38 @@ export default function ModelConfigCard({
 
   const toggleDefault = () => {
     handleChange({ useDefault: !localConfig.useDefault })
+  }
+
+  const testConnection = async () => {
+    setTestStatus('testing')
+    setTestMessage('')
+
+    try {
+      const response = await fetch('/api/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modelConfig: localConfig })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setTestStatus('success')
+        setTestMessage(`连接成功 (${result.model})`)
+      } else {
+        setTestStatus('error')
+        setTestMessage(result.error || '连接失败')
+      }
+    } catch (error: any) {
+      setTestStatus('error')
+      setTestMessage(error.message || '网络错误')
+    }
+
+    // 5秒后重置状态
+    setTimeout(() => {
+      setTestStatus('idle')
+      setTestMessage('')
+    }, 5000)
   }
 
   return (
@@ -372,18 +410,56 @@ export default function ModelConfigCard({
                       )}
                     </div>
 
-                    {/* 重置按钮 */}
-                    <div className="flex justify-end pt-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleReset}
-                        disabled={disabled}
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        <RotateCcw className="w-4 h-4 mr-2" />
-                        重置为默认
-                      </Button>
+                    {/* 操作按钮 */}
+                    <div className="flex justify-between items-center pt-2">
+                      {/* 测试连通性状态提示 */}
+                      <AnimatePresence mode="wait">
+                        {testStatus !== 'idle' && (
+                          <motion.div
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            className={cn(
+                              'flex items-center gap-2 text-sm',
+                              testStatus === 'success' && 'text-green-600 dark:text-green-400',
+                              testStatus === 'error' && 'text-red-600 dark:text-red-400',
+                              testStatus === 'testing' && 'text-muted-foreground'
+                            )}
+                          >
+                            {testStatus === 'testing' && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {testStatus === 'success' && <CheckCircle2 className="w-4 h-4" />}
+                            {testStatus === 'error' && <XCircle className="w-4 h-4" />}
+                            <span>{testMessage || '测试中...'}</span>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      <div className="flex gap-2 ml-auto">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={testConnection}
+                          disabled={disabled || testStatus === 'testing' || (!localConfig.useDefault && !localConfig.apiKey)}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          {testStatus === 'testing' ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <Zap className="w-4 h-4 mr-2" />
+                          )}
+                          测试连通性
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleReset}
+                          disabled={disabled}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <RotateCcw className="w-4 h-4 mr-2" />
+                          重置为默认
+                        </Button>
+                      </div>
                     </div>
                   </motion.div>
                 )}
