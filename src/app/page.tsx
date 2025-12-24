@@ -375,37 +375,7 @@ export default function WriterAnalysisPage() {
                 />
               </motion.div>
 
-              <AnimatePresence mode="wait">
-                {isLoading && (
-                  <motion.div
-                    key="loading"
-                    initial={{
-                      opacity: 0,
-                      scale: 0.9,
-                      y: 20,
-                      filter: 'blur(4px)'
-                    }}
-                    animate={{
-                      opacity: 1,
-                      scale: 1,
-                      y: 0,
-                      filter: 'blur(0px)'
-                    }}
-                    exit={{
-                      opacity: 0,
-                      scale: 0.9,
-                      y: -10,
-                      filter: 'blur(4px)'
-                    }}
-                    transition={{
-                      duration: 0.5,
-                      ease: [0.23, 1, 0.32, 1]
-                    }}
-                  >
-                    <LoadingProgress progress={progress} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+
             </motion.div>
           </div>
         </div>
@@ -414,6 +384,8 @@ export default function WriterAnalysisPage() {
       <div className="max-w-300 w-full mx-auto px-4 sm:px-6">
         <FeaturesSection />
       </div>
+
+      <LoadingProgress open={isLoading} />
 
       <ResultModal
         result={result}

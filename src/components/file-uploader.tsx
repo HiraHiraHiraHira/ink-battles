@@ -5,7 +5,6 @@ import { useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
-import Image from 'next/image'
 import { decodeTextFromFile } from '@/utils/decode-text'
 import { UploadCloud, X, FileText, Loader2, Sparkles } from 'lucide-react'
 import { cn } from '@/utils/utils'
@@ -16,6 +15,7 @@ interface FileUploaderProps {
   onAnalyzeAction: () => void
   setUploadedTextAction?: (content: string) => void
   file?: File | null
+  // previewUrl 暂时禁用，因为图片功能已关闭
   previewUrl?: string | null
 }
 
@@ -27,7 +27,8 @@ export default function FileUploader({
   onAnalyzeAction,
   setUploadedTextAction,
   file,
-  previewUrl
+  // previewUrl 暂时不使用
+  // previewUrl
 }: FileUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -45,17 +46,18 @@ export default function FileUploader({
       return
     }
 
-    const isImage = selectedFile.type.startsWith('image/')
+    // 暂时禁用图片支持，因为默认模型不是多模态的
+    // const isImage = selectedFile.type.startsWith('image/')
     const isText =
       selectedFile.type === 'text/plain' ||
       selectedFile.name.toLowerCase().endsWith('.txt')
     const isDocx = selectedFile.name.toLowerCase().endsWith('.docx')
-    if (!isImage && !isText && !isDocx) {
-      toast.error('仅支持 .txt/.docx 或图片')
+    if (!isText && !isDocx) {
+      toast.error('仅支持 .txt/.docx 文档格式')
       return
     }
 
-    // 对于文本文件，提取文本内容
+    // 提取文本内容
     if (isText || isDocx) {
       try {
         const decoded = await decodeTextFromFile(selectedFile)
@@ -118,7 +120,7 @@ export default function FileUploader({
           type="file"
           ref={fileInputRef}
           className="hidden"
-          accept="image/*,.txt,text/plain,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          accept=".txt,text/plain,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           onChange={handleFileChange}
         />
 
@@ -132,7 +134,7 @@ export default function FileUploader({
                 点击或拖拽文件到此处
               </p>
               <p className="text-sm text-muted-foreground">
-                支持 .txt, .docx 文档或图片格式
+                支持 .txt, .docx 文档格式
               </p>
             </div>
             <div className="text-xs text-muted-foreground/70 bg-muted/50 px-3 py-1 rounded-full">
@@ -141,29 +143,17 @@ export default function FileUploader({
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center">
-            {previewUrl ? (
-              <div className="relative w-full h-full min-h-50 flex items-center justify-center">
-                <Image
-                  src={previewUrl}
-                  alt="预览图片"
-                  fill
-                  style={{ objectFit: 'contain' }}
-                  className="rounded-lg shadow-sm"
-                />
+            <div className="flex flex-col items-center gap-4 p-8">
+              <FileText className="w-16 h-16 text-primary" />
+              <div className="text-center">
+                <p className="font-medium text-lg break-all line-clamp-2">
+                  {file.name}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {toReadableSize(file.size)}
+                </p>
               </div>
-            ) : (
-              <div className="flex flex-col items-center gap-4 p-8">
-                <FileText className="w-16 h-16 text-primary" />
-                <div className="text-center">
-                  <p className="font-medium text-lg break-all line-clamp-2">
-                    {file.name}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {toReadableSize(file.size)}
-                  </p>
-                </div>
-              </div>
-            )}
+            </div>
 
             <Button
               variant="destructive"
