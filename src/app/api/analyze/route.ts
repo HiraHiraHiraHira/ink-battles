@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server'
-import { generateText } from 'xsai'
+import { streamText } from 'xsai'
 import { buildPrompt } from '@/prompts'
 import { calculateOverallScore } from '@/utils/score-calculator'
 import { logger } from '@/utils/logger'
@@ -228,7 +228,6 @@ export async function POST(request: NextRequest) {
             response_format: useJsonSchema ? jsonSchemaFormat : simpleJsonFormat
           }
 
-          let generatedText: string
           let messages: any[]
 
           if (analysisType === 'text') {
@@ -269,13 +268,42 @@ export async function POST(request: NextRequest) {
             messages
           }
 
+          // 移除心跳，因为流式响应本身会保持连接
+          clearInterval(heartbeatInterval)
+
           const progressMsg =
             JSON.stringify({ type: 'progress', message: '正在分析中...' }) +
             '\n'
           controller.enqueue(encoder.encode(progressMsg))
 
-          const { text } = await generateText(genOptions)
-          generatedText = text as string
+          // 使用真正的流式 API
+          const { textStream } = await streamText(genOptions)
+          
+          let generatedText = ''
+          let chunkCount = 0
+          
+          // 使用 getReader 读取流
+          const reader = textStream.getReader()
+          try {
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+              
+              generatedText += value
+              chunkCount++
+              
+              // 每 10 个 chunk 发送一次进度，保持连接活跃
+              if (chunkCount % 10 === 0) {
+                const chunkMsg = JSON.stringify({ 
+                  type: 'progress', 
+                  message: `正在生成分析结果... (${generatedText.length} 字)` 
+                }) + '\n'
+                controller.enqueue(encoder.encode(chunkMsg))
+              }
+            }
+          } finally {
+            reader.releaseLock()
+          }
 
           if (!generatedText || generatedText.trim().length === 0) {
             logger.error('Missing content in AI response', { generatedText })
