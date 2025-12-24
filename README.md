@@ -80,4 +80,6 @@ npm run deploy
 
 ## 许可证
 
-MIT License
+本项目基于 [GPL-3.0](LICENSE) 许可证开源。
+
+Fork 自 [yumetsuki/ink-battles](https://github.com/yumetsuki/ink-battles)，新增了自定义模型配置和连通性测试功能。
